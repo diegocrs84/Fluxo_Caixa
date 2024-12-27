@@ -1,0 +1,133 @@
+import java.sql.*;
+import java.util.*;
+import java.util.Date;
+
+public class CompararTransacoes {
+
+    // Classe para representar uma transação
+    static class Transacao {
+        int id;
+        Date data;
+        String tipo;
+        double valor;
+
+        public Transacao(int id, Date data, String tipo, double valor) {
+            this.id = id;
+            this.data = data;
+            this.tipo = tipo;
+            this.valor = valor;
+        }
+
+        // Método para verificar se duas transações são iguais (mesmo id)
+        public boolean equals(Transacao t) {
+            return this.id == t.id;
+        }
+    }
+
+    // Função para obter transações reais do banco de dados
+    public static List<Transacao> obter_transacoes_reais() {
+        List<Transacao> transacoesReais = new ArrayList<>();
+
+        String url = "jdbc:oracle:thin:@hostname:porta:servicename";
+        String usuario = "usuario";
+        String senha = "senha";
+
+        // Data de início e fim do mês
+        Date data_inicio = new Date(); 
+        Date data_fim = new Date();    
+
+        String query = "select id, data, tipo, valor from transacoes where data between ? and ? order by data";
+
+        try (Connection conn = DriverManager.getConnection(url, usuario, senha);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setDate(1, new java.sql.Date(data_inicio.getTime()));
+            stmt.setDate(2, new java.sql.Date(data_fim.getTime()));
+
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                Date data = rs.getDate("data");
+                String tipo = rs.getString("tipo");
+                double valor = rs.getDouble("valor");
+                transacoesReais.add(new Transacao(id, data, tipo, valor));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return transacoesReais;
+    }
+
+
+    public static List<Transacao> gerar_relatorio_previsao() {
+        // Aqui você deveria implementar a lógica de previsão de fluxo de caixa
+        // Para fins de exemplo, vamos retornar uma lista de transações previstas fictícias
+        List<Transacao> transacoesPrevistas = new ArrayList<>();
+        transacoesPrevistas.add(new Transacao(1, new Date(), "receita", 5000));
+        transacoesPrevistas.add(new Transacao(2, new Date(), "despesa", 2000));
+        transacoesPrevistas.add(new Transacao(3, new Date(), "receita", 7000));
+        transacoesPrevistas.add(new Transacao(4, new Date(), "despesa", 1000));
+        return transacoesPrevistas;
+    }
+
+    // Função para comparar transações reais com transações previstas
+    public static List<String> compararTransacoes() {
+        List<String> discrepancias = new ArrayList<>();
+        List<Transacao> transacoesReais = obterTransacoesReais();
+        List<Transacao> transacoesPrevistas = gerarRelatorioPrevisao();
+
+        // Comparar as transações previstas com as reais
+        for (Transacao tPrevista : transacoesPrevistas) {
+            boolean encontrado = false;
+            for (Transacao tReal : transacoesReais) {
+                if (tPrevista.equals(tReal)) {
+                    encontrado = true;
+
+                    // Se a transação real e prevista têm o mesmo ID, verificar se os valores são iguais
+                    if (tPrevista.valor != tReal.valor) {
+                        discrepancias.add("Discrepância de valor para a transação ID " + tPrevista.id + ": " +
+                                "Previsto: " + tPrevista.valor + ", Real: " + tReal.valor);
+                    }
+                    break;
+                }
+            }
+            if (!encontrado) {
+                discrepancias.add("Transação prevista ID " + tPrevista.id + " ausente nas transações reais.");
+            }
+        }
+
+        // Verificar se há transações reais que não foram previstas
+        for (Transacao tReal : transacoesReais) {
+            boolean encontrado = false;
+            for (Transacao tPrevista : transacoesPrevistas) {
+                if (tReal.equals(tPrevista)) {
+                    encontrado = true;
+                    break;
+                }
+            }
+            if (!encontrado) {
+                discrepancias.add("Transação real ID " + tReal.id + " não prevista no relatório.");
+            }
+        }
+
+        return discrepancias;
+    }
+
+    // Função para imprimir as discrepâncias
+    public static void executarComparacao() {
+        List<String> discrepancias = compararTransacoes();
+        if (discrepancias.isEmpty()) {
+            System.out.println("Não há discrepâncias. As transações estão consistentes.");
+        } else {
+            System.out.println("Discrepâncias encontradas:");
+            for (String discrepancia : discrepancias) {
+                System.out.println(discrepancia);
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        executarComparacao();
+    }
+}
